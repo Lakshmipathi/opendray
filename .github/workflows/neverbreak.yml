@@ -1,0 +1,16 @@
+name: neverbreak
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  race-repro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: TestExec_Spawn_StreamsThenEnds under -race
+        run: go test -race -count=5 -timeout=180s -run TestExec_Spawn_StreamsThenEnds ./plugin/bridge/...
