@@ -12,5 +12,5 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: TestExec_Spawn_StreamsThenEnds under -race
-        run: go test -race -count=5 -timeout=180s -run TestExec_Spawn_StreamsThenEnds ./plugin/bridge/...
+      - name: TestExec_Spawn_StreamsThenEnds under -race x100
+        run: go test -race -count=100 -timeout=300s -run TestExec_Spawn_StreamsThenEnds ./plugin/bridge/...
