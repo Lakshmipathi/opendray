@@ -11,14 +11,14 @@ jobs:
     name: Frontend (Flutter)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           channel: beta
       - run: cd app && flutter pub get
       - run: cd app && flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: cd app && flutter build web --release
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: web-build
           path: app/build/web
@@ -29,12 +29,12 @@ jobs:
     needs: frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
         with:
           name: web-build
           path: app/build/web
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.25"
       - run: go vet ./...
