@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/opendray/opendray/internal/securepath"
 )
 
 // Maximum image upload size — 25 MB.
@@ -61,14 +63,23 @@ func (s *Server) sessionAttachImage(w http.ResponseWriter, r *http.Request) {
 
 	// Use a server-owned directory outside the user's project. Persists across
 	// session stop/start; cleaned up by the OS's tmp-reaper over time.
-	baseDir := filepath.Join(os.TempDir(), "opendray-images", sessionID)
+	imagesRoot := filepath.Join(os.TempDir(), "opendray-images")
+	baseDir, err := securepath.Join(imagesRoot, sessionID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, fmt.Errorf("invalid session id: %w", err).Error())
+		return
+	}
 	if err := os.MkdirAll(baseDir, 0o755); err != nil {
 		respondError(w, http.StatusInternalServerError, fmt.Errorf("mkdir: %w", err).Error())
 		return
 	}
 
 	name := fmt.Sprintf("img-%d%s", time.Now().UnixNano(), ext)
-	absPath := filepath.Join(baseDir, name)
+	absPath, err := securepath.Join(baseDir, name)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, fmt.Errorf("path: %w", err).Error())
+		return
+	}
 	if err := os.WriteFile(absPath, body, 0o644); err != nil {
 		respondError(w, http.StatusInternalServerError, fmt.Errorf("write: %w", err).Error())
 		return

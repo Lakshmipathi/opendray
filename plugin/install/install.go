@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opendray/opendray/internal/securepath"
 	"github.com/opendray/opendray/kernel/store"
 	"github.com/opendray/opendray/plugin"
 	"github.com/opendray/opendray/plugin/bridge"
@@ -446,8 +447,12 @@ func (i *Installer) Uninstall(ctx context.Context, name string) error {
 
 	// Remove the filesystem tree for every version of this plugin. We
 	// delete the whole parent dir (${DataDir}/${name}) because M1 only
-	// keeps a single version per plugin.
-	pluginDir := filepath.Join(i.DataDir, name)
+	// keeps a single version per plugin. securepath.Join rejects names
+	// containing ".." so a malicious manifest can't widen the rm-rf.
+	pluginDir, err := securepath.Join(i.DataDir, name)
+	if err != nil {
+		return fmt.Errorf("install: invalid plugin name %q: %w", name, err)
+	}
 	if err := os.RemoveAll(pluginDir); err != nil {
 		return fmt.Errorf("install: remove plugin dir: %w", err)
 	}
