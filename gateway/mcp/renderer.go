@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/opendray/opendray/internal/securepath"
 	"github.com/opendray/opendray/kernel/store"
 )
 
@@ -61,7 +61,10 @@ func (claudeRenderer) render(baseDir string, servers []store.MCPServer) (Injecti
 		return Injection{}, fmt.Errorf("mcp: marshal claude config: %w", err)
 	}
 
-	path := filepath.Join(baseDir, "claude-mcp.json")
+	path, err := securepath.Join(baseDir, "claude-mcp.json")
+	if err != nil {
+		return Injection{}, fmt.Errorf("mcp: claude config path: %w", err)
+	}
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return Injection{}, fmt.Errorf("mcp: write claude config: %w", err)
 	}
@@ -127,11 +130,17 @@ func (codexRenderer) render(baseDir string, servers []store.MCPServer) (Injectio
 		return Injection{}, nil
 	}
 
-	home := filepath.Join(baseDir, "codex-home")
+	home, err := securepath.Join(baseDir, "codex-home")
+	if err != nil {
+		return Injection{}, fmt.Errorf("mcp: codex home path: %w", err)
+	}
 	if err := os.MkdirAll(home, 0o700); err != nil {
 		return Injection{}, fmt.Errorf("mcp: mkdir codex home: %w", err)
 	}
-	path := filepath.Join(home, "config.toml")
+	path, err := securepath.Join(home, "config.toml")
+	if err != nil {
+		return Injection{}, fmt.Errorf("mcp: codex config path: %w", err)
+	}
 	body := strings.Join(blocks, "\n\n") + "\n"
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		return Injection{}, fmt.Errorf("mcp: write codex config: %w", err)

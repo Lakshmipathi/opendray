@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/opendray/opendray/internal/securepath"
 	"github.com/opendray/opendray/kernel/store"
 )
 
@@ -58,7 +59,10 @@ func buildOpenCodeConfig(sessionID string, p store.LLMProvider, apiKey, model st
 		return OpenCodeInjection{}, fmt.Errorf("opencode: session has no model selected; pick one from the provider's model list")
 	}
 
-	dir := openCodeConfigDir(sessionID)
+	dir, err := openCodeConfigDir(sessionID)
+	if err != nil {
+		return OpenCodeInjection{}, fmt.Errorf("opencode: invalid session id: %w", err)
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return OpenCodeInjection{}, fmt.Errorf("opencode: mkdir config: %w", err)
 	}
@@ -92,7 +96,10 @@ func buildOpenCodeConfig(sessionID string, p store.LLMProvider, apiKey, model st
 	if err != nil {
 		return OpenCodeInjection{}, fmt.Errorf("opencode: marshal config: %w", err)
 	}
-	path := filepath.Join(dir, "opencode.json")
+	path, err := securepath.Join(dir, "opencode.json")
+	if err != nil {
+		return OpenCodeInjection{}, fmt.Errorf("opencode: config path: %w", err)
+	}
 	if err := os.WriteFile(path, buf, 0o600); err != nil {
 		return OpenCodeInjection{}, fmt.Errorf("opencode: write config: %w", err)
 	}
@@ -101,22 +108,33 @@ func buildOpenCodeConfig(sessionID string, p store.LLMProvider, apiKey, model st
 
 // cleanupOpenCodeConfig removes the per-session config tree. Safe to
 // call even if we never wrote one (the RemoveAll is a no-op on a
-// missing path).
+// missing path). An invalid session id is treated as "nothing to
+// clean" — buildOpenCodeConfig would have rejected the same id, so no
+// files exist on disk under it.
 func cleanupOpenCodeConfig(sessionID string) {
-	_ = os.RemoveAll(openCodeConfigDir(sessionID))
+	dir, err := openCodeConfigDir(sessionID)
+	if err != nil {
+		return
+	}
+	_ = os.RemoveAll(dir)
 }
 
 // openCodeConfigDir picks a predictable, user-findable location for
 // the generated config. macOS's os.TempDir() returns a hashed path
 // like /var/folders/xx/yy/T/ which is awful to debug; putting our
 // files under ~/.opendray makes them trivial to `ls` and diff.
-func openCodeConfigDir(sessionID string) string {
+//
+// sessionID is validated against the chosen root via securepath.Join
+// so a malicious id (e.g. containing "..") cannot escape into the
+// parent directory.
+func openCodeConfigDir(sessionID string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		// Fallback to OS temp dir if somehow HOME is unavailable.
-		return filepath.Join(os.TempDir(), "opendray-opencode-"+sessionID)
+		return securepath.Join(os.TempDir(), "opendray-opencode-"+sessionID)
 	}
-	return filepath.Join(home, ".opendray", "opencode-sessions", sessionID)
+	root := filepath.Join(home, ".opendray", "opencode-sessions")
+	return securepath.Join(root, sessionID)
 }
 
 // rewriteModelArg replaces the value of any existing "--model <val>"

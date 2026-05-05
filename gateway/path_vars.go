@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
+	"github.com/opendray/opendray/internal/securepath"
 	"github.com/opendray/opendray/plugin"
 	"github.com/opendray/opendray/plugin/bridge"
 )
@@ -57,11 +57,23 @@ func (r *PathVarResolver) Resolve(_ context.Context, pluginName string) (bridge.
 			version = p.Version
 		}
 	}
-	dataDir := filepath.Join(r.DataDir, pluginName)
-	if version != "" {
-		dataDir = filepath.Join(dataDir, version)
+	// Build the data dir step-by-step through securepath.Join so a
+	// malicious manifest with ".." in name or version can't escape the
+	// configured DataDir root.
+	dataDir, err := securepath.Join(r.DataDir, pluginName)
+	if err != nil {
+		return bridge.PathVarCtx{}, fmt.Errorf("path_vars: invalid plugin name %q: %w", pluginName, err)
 	}
-	dataDir = filepath.Join(dataDir, "data")
+	if version != "" {
+		dataDir, err = securepath.Join(dataDir, version)
+		if err != nil {
+			return bridge.PathVarCtx{}, fmt.Errorf("path_vars: invalid version %q: %w", version, err)
+		}
+	}
+	dataDir, err = securepath.Join(dataDir, "data")
+	if err != nil {
+		return bridge.PathVarCtx{}, fmt.Errorf("path_vars: build data dir: %w", err)
+	}
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		return bridge.PathVarCtx{}, fmt.Errorf("path_vars: mkdir %s: %w", dataDir, err)
 	}

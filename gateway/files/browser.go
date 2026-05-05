@@ -214,14 +214,19 @@ func MakeDir(cfg BrowserConfig, parent, name string) (string, error) {
 		return "", err
 	}
 	target := filepath.Join(parentAbs, name)
-	// Re-verify the target is still inside an allowed root (defence in depth).
-	if _, err := securePath(cfg, target); err != nil {
+	// Re-verify the target is still inside an allowed root (defence in
+	// depth). Use the resolved value securePath returned: if the parent
+	// is a symlink that escaped, using the original `target` would write
+	// at the unresolved path while the security check passed against the
+	// resolved one — a small but real TOCTOU.
+	verified, err := securePath(cfg, target)
+	if err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(target, 0o755); err != nil {
+	if err := os.MkdirAll(verified, 0o755); err != nil {
 		return "", fmt.Errorf("files: mkdir: %w", err)
 	}
-	return target, nil
+	return verified, nil
 }
 
 // ── Security ────────────────────────────────────────────────────

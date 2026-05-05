@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/opendray/opendray/internal/securepath"
 	"github.com/opendray/opendray/kernel/store"
 )
 
@@ -80,7 +81,10 @@ func (r *Runtime) RenderFor(ctx context.Context, sessionID, agent string) (Injec
 		return Injection{}, nil
 	}
 
-	dir := filepath.Join(r.baseDir, sessionID)
+	dir, err := securepath.Join(r.baseDir, sessionID)
+	if err != nil {
+		return Injection{}, fmt.Errorf("mcp: invalid session id %q: %w", sessionID, err)
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return Injection{}, fmt.Errorf("mcp: mkdir session dir: %w", err)
 	}

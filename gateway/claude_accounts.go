@@ -330,10 +330,22 @@ func (s *Server) switchSessionAccount(w http.ResponseWriter, r *http.Request) {
 // writeToken writes a token to disk with chmod 600, creating the parent
 // directory as needed. We trim a trailing newline so a copy-paste that
 // includes one doesn't break the Claude CLI's header parsing.
+//
+// path is admin-supplied (this lives behind the authenticated group), so
+// the threat model is "admin chooses storage location". We still require
+// the path to be absolute and canonical (Clean-equal) so a malformed
+// input like "/var/../etc/passwd" is rejected up front rather than
+// silently rewriting via os.MkdirAll on a parent we didn't intend.
 func writeToken(path, token string) error {
 	token = strings.TrimSpace(token)
 	if token == "" {
 		return fmt.Errorf("token is empty")
+	}
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("token path must be absolute, got %q", path)
+	}
+	if filepath.Clean(path) != path {
+		return fmt.Errorf("token path must be canonical (Clean-equal), got %q", path)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
