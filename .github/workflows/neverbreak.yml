@@ -12,5 +12,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: TestExec_Spawn_StreamsThenEnds under -race x100
-        run: go test -race -count=100 -timeout=300s -run TestExec_Spawn_StreamsThenEnds ./plugin/bridge/...
+      - name: TestExec_Spawn under CPU stress (matching reported "runner-load" conditions)
+        run: |
+          # Spawn background CPU burners to simulate the runner-load condition
+          # the issue body says is needed to expose this race.
+          for i in 1 2 3 4 5 6 7 8; do ( yes > /dev/null & ) 2>/dev/null; done
+          go test -race -count=50 -parallel=8 -timeout=300s -run TestExec_Spawn_StreamsThenEnds ./plugin/bridge/...
